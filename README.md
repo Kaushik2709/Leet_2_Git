@@ -1,52 +1,80 @@
-# DSA Sync - LeetCode to GitHub Extension
+# 🚀 DSA Sync: LeetCode to GitHub Automated Bridge
 
-A Chrome extension built with Plasmo that automatically pushes your accepted LeetCode solutions to a GitHub repository.
+**DSA Sync** is a sophisticated Chrome extension that streamlines your coding journey by automatically synchronizing your "Accepted" LeetCode submissions to a dedicated GitHub repository. It handles code extraction, formatting, and README documentation in real-time.
 
-## Features
-*   **Automatic Sync:** Pushes code immediately after an "Accepted" submission.
-*   **OAuth Login:** Secure "Login with GitHub" using Device Flow.
-*   **Detailed Stats:** Track your streak, weekly progress, and problem difficulty distribution.
-*   **README Automation:** Updates repository READMEs with a dashboard of your progress.
+---
 
-## Setup Instructions
+## 🛠️ The Tech Stack
 
-### 1. Prerequisites
-*   Node.js (v18+)
-*   Brave/Chrome Browser
+- **Framework:** [Plasmo](https://www.plasmo.com/) (Browser Extension Framework for MV3)
+- **Frontend:** React 18, Tailwind CSS, Lucide React (Icons)
+- **Language:** TypeScript
+- **API Integrations:** 
+  - **LeetCode GraphQL API** (Detailed problem metadata extraction)
+  - **GitHub REST API** (Repository management & File synchronization)
+  - **GitHub Device Flow OAuth** (Secure, CLI-like authentication)
+- **Storage:** Plasmo Storage (Synchronized browser state)
 
-### 2. Install Dependencies
-```bash
-npm install
-```
+---
 
-### 3. Setup GitHub OAuth App
-1. Go to [GitHub Developer Settings](https://github.com/settings/developers).
-2. Click **New OAuth App**.
-3. **App Name:** `DSA Sync`
-4. **Homepage URL:** `https://leetcode.com`
-5. **Authorization callback URL:** `https://<YOUR_EXTENSION_ID>.chromiumapp.org/`
-   * To find your Extension ID: Go to `chrome://extensions`, load the extension, and copy the ID string.
-6. Copy the **Client ID** and paste it into `dsasync/.env`:
-   `PLASMO_PUBLIC_GITHUB_CLIENT_ID=your_client_id_here`
+## 🏗️ How It Works (E2E Workflow)
 
-### 4. Build and Load
-```bash
-npm run build
-```
-1. Open `chrome://extensions` in your browser.
-2. Enable **Developer mode**.
-3. Click **Load unpacked** and select `dsasync/build/chrome-mv3-prod`.
+The extension operates through a multi-layered architectural approach to ensure reliability and performance:
 
-### 5. Configure
-1. Click the **DSA Sync** icon.
-2. Click **Login with GitHub**.
-3. Enter the 8-digit code on GitHub.
-4. Provide your **Full GitHub Repository URL** (e.g., `https://github.com/Kaushik2709/DSA`).
-5. Set your target folder (e.g., `DSA/`).
-6. Click **Finish Setup**.
+1.  **Network Interception:** A specialized `interceptor.ts` script monkey-patches the global `window.fetch` within the LeetCode page context. It detects specific network responses (requests to `/check/`) that signify a successful "Accepted" submission.
+2.  **Data Extraction:** Once a submission is detected, a content script (`leetcode.ts`) triggers a GraphQL query to LeetCode's internal API. This fetches rich metadata: the actual code, runtime performance, memory usage, difficulty level, and topic tags.
+3.  **Background Processing:** The extracted data is passed via secure messaging to a Background Service Worker (`SUBMISSION_DETECTED.ts`). This worker operates independently of the UI, ensuring that the sync process completes even if the tab is closed.
+4.  **GitHub Synchronization:** 
+    - **Collision Handling:** Checks if the solution already exists to decide between a `POST` or `PUT` request.
+    - **Documentation Engine:** Automatically updates two READMEs—the root dashboard and a category-specific (e.g., `Arrays/`, `Dynamic Programming/`) README—maintaining an organized table of your progress.
+5.  **Analytics & UI:** A React-powered popup dashboard tracks your solving streaks, difficulty distribution (Easy/Medium/Hard), and weekly progress by reading from synchronized browser storage.
 
-## Development
-To run in watch mode:
-```bash
-npm run dev
-```
+---
+
+## ✨ Key Features & Engineering Highlights
+
+- **Zero-Config Sync:** Once set up, the extension works silently in the background. No manual triggers required.
+- **GitHub Device Flow Auth:** Implemented a secure "Device Code" authentication flow, removing the need for users to manually input sensitive Personal Access Tokens (PATs).
+- **Automated Dashboarding:** Beyond just saving code, it builds a professional portfolio by updating your repository's README with formatted tables and performance stats.
+- **Reliable Networking:** Built with custom retry logic and exponential backoff to handle GitHub API rate limits (HTTP 429).
+- **Type-Safe Architecture:** Fully written in TypeScript with shared interfaces across content scripts, background workers, and the UI.
+
+---
+
+## 🚀 Getting Started
+
+### Prerequisites
+- Node.js (v18+)
+- A GitHub account and a target repository.
+
+### Installation
+1.  **Clone & Install:**
+    ```bash
+    git clone https://github.com/Kaushik2709/DSA_Sync.git
+    cd DSA_Sync/leet_2_git
+    npm install
+    ```
+2.  **Environment Setup:** Create a `.env` file and add your GitHub OAuth Client ID:
+    ```env
+    PLASMO_PUBLIC_GITHUB_CLIENT_ID=your_client_id_here
+    ```
+3.  **Build:**
+    ```bash
+    npm run build
+    ```
+4.  **Load Extension:**
+    - Go to `chrome://extensions`
+    - Enable **Developer mode**
+    - Click **Load unpacked** and select the `build/chrome-mv3-prod` folder.
+
+---
+
+## 👨‍💻 Author
+
+**Kaushik Mukherjee**
+- GitHub: [@Kaushik2709](https://github.com/Kaushik2709)
+- Project Repository: [DSA_Sync](https://github.com/Kaushik2709/DSA_Sync)
+
+---
+
+*Built with ❤️ for the LeetCode community.*
