@@ -50,7 +50,7 @@ The extension operates through a multi-layered architectural approach to ensure 
 ### Installation
 1.  **Clone & Install:**
     ```bash
-    git clone https://github.com/Kaushik2709/DSA_Sync.git
+    git clone https://github.com/Kaushik2709/Leet_2_Git.git
     cd DSA_Sync/leet_2_git
     npm install
     ```
@@ -73,7 +73,7 @@ The extension operates through a multi-layered architectural approach to ensure 
 
 **Kaushik Mukherjee**
 - GitHub: [@Kaushik2709](https://github.com/Kaushik2709)
-- Project Repository: [DSA_Sync](https://github.com/Kaushik2709/DSA_Sync)
+- Project Repository: [Leet_2_Git](https://github.com/Kaushik2709/Leet_2_Git)
 
 ---
 
