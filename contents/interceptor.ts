@@ -5,21 +5,28 @@
   window.fetch = async (...args) => {
     const response = await originalFetch(...args)
     
-    if (typeof args[0] === 'string' && args[0].includes('graphql')) {
-      const clone = response.clone()
-      try {
-        const body = await clone.json()
-        
-        // Check if it's a submission details query
-        if (body.data?.submissionDetails) {
-          window.postMessage({
-            type: "LEETCODE_SUBMISSION",
-            payload: body.data.submissionDetails
-          }, "*")
+    try {
+      const url = typeof args[0] === 'string' ? args[0] : (args[0] && args[0].url ? args[0].url : '')
+      
+      // Intercept LeetCode submission check
+      if (url && url.includes('/check/')) {
+        const match = url.match(/\/submissions\/detail\/(\d+)\/check/)
+        if (match) {
+          const submissionId = match[1]
+          const clone = response.clone()
+          
+          clone.json().then(body => {
+            if (body.state === 'SUCCESS' && body.status_msg === 'Accepted') {
+              window.postMessage({
+                type: "LEETCODE_SUBMISSION_ACCEPTED",
+                payload: { submissionId }
+              }, "*")
+            }
+          }).catch(e => {})
         }
-      } catch (e) {
-        // Not a JSON or not what we want
       }
+    } catch (e) {
+      // ignore
     }
     
     return response

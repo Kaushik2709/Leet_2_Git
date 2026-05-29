@@ -12,20 +12,74 @@ script.src = interceptorUrl
 script.onload = () => script.remove()
 ;(document.head || document.documentElement).appendChild(script)
 
+async function fetchSubmissionDetails(submissionId: string) {
+  const query = `
+    query submissionDetails($submissionId: Int!) {
+      submissionDetails(submissionId: $submissionId) {
+        runtimeDisplay
+        runtimePercentile
+        memoryDisplay
+        memoryPercentile
+        code
+        lang {
+          name
+          verboseName
+        }
+        question {
+          questionFrontendId
+          title
+          titleSlug
+          difficulty
+          topicTags {
+            name
+          }
+        }
+        statusDisplay
+      }
+    }
+  `
+
+  const csrfToken = document.cookie
+    .split("; ")
+    .find((row) => row.startsWith("csrftoken="))
+    ?.split("=")[1]
+
+  try {
+    const response = await fetch("https://leetcode.com/graphql/", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-csrftoken": csrfToken || ""
+      },
+      body: JSON.stringify({
+        query,
+        variables: { submissionId: parseInt(submissionId) }
+      })
+    })
+
+    const result = await response.json()
+    return result.data.submissionDetails
+  } catch (error) {
+    console.error("DSA Sync: Error fetching submission details:", error)
+    return null
+  }
+}
+
 // Listen for messages from the injected script
 window.addEventListener("message", async (event) => {
-  if (event.source !== window || event.data.type !== "LEETCODE_SUBMISSION") {
-    return
-  }
+  if (event.source !== window) return
 
-  const submissionData = event.data.payload
-  if (submissionData.statusDisplay === "Accepted") {
-    console.log("DSA Sync: Accepted submission detected!", submissionData)
+  if (event.data.type === "LEETCODE_SUBMISSION_ACCEPTED") {
+    const { submissionId } = event.data.payload
+    console.log("DSA Sync: Submission accepted! ID:", submissionId)
     
-    // Send to background for processing
-    await sendToBackground({
-      name: "SUBMISSION_DETECTED",
-      body: submissionData
-    })
+    const details = await fetchSubmissionDetails(submissionId)
+    if (details) {
+      console.log("DSA Sync: Details fetched, sending to background...")
+      await sendToBackground({
+        name: "SUBMISSION_DETECTED",
+        body: details
+      })
+    }
   }
 })

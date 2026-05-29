@@ -14,12 +14,24 @@ export interface LeetCodeSubmission {
   submittedAt: string
 }
 
+export interface Stats {
+  Easy: number
+  Medium: number
+  Hard: number
+  Total: number
+}
+
 export interface ExtensionConfig {
-  githubToken: string
-  repoName: string
+  accessToken: string
+  repoUrl: string // Full URL: https://github.com/user/repo
+  repoName: string // Parsed: user/repo
   folderPath: string
   isEnabled: boolean
   lastSynced?: LeetCodeSubmission
+  stats: Stats
+  streak: number
+  lastSolveDate?: string
+  weeklyHistory: string[]
 }
 
 export type MessageType = "SUBMISSION_DETECTED" | "GET_CONFIG" | "SET_CONFIG"

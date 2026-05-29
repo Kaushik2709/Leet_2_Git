@@ -7,10 +7,14 @@ chrome.runtime.onInstalled.addListener(async () => {
   const config = await storage.get("config")
   if (!config) {
     await storage.set("config", {
-      githubToken: "",
+      accessToken: "",
+      repoUrl: "",
       repoName: "",
       folderPath: "DSA/",
-      isEnabled: true
+      isEnabled: true,
+      stats: { Easy: 0, Medium: 0, Hard: 0, Total: 0 },
+      streak: 0,
+      weeklyHistory: []
     })
   }
 })

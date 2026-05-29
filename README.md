@@ -1,33 +1,52 @@
-This is a [Plasmo extension](https://docs.plasmo.com/) project bootstrapped with [`plasmo init`](https://www.npmjs.com/package/plasmo).
+# DSA Sync - LeetCode to GitHub Extension
 
-## Getting Started
+A Chrome extension built with Plasmo that automatically pushes your accepted LeetCode solutions to a GitHub repository.
 
-First, run the development server:
+## Features
+*   **Automatic Sync:** Pushes code immediately after an "Accepted" submission.
+*   **OAuth Login:** Secure "Login with GitHub" using Device Flow.
+*   **Detailed Stats:** Track your streak, weekly progress, and problem difficulty distribution.
+*   **README Automation:** Updates repository READMEs with a dashboard of your progress.
 
+## Setup Instructions
+
+### 1. Prerequisites
+*   Node.js (v18+)
+*   Brave/Chrome Browser
+
+### 2. Install Dependencies
 ```bash
-pnpm dev
-# or
-npm run dev
+npm install
 ```
 
-Open your browser and load the appropriate development build. For example, if you are developing for the chrome browser, using manifest v3, use: `build/chrome-mv3-dev`.
+### 3. Setup GitHub OAuth App
+1. Go to [GitHub Developer Settings](https://github.com/settings/developers).
+2. Click **New OAuth App**.
+3. **App Name:** `DSA Sync`
+4. **Homepage URL:** `https://leetcode.com`
+5. **Authorization callback URL:** `https://<YOUR_EXTENSION_ID>.chromiumapp.org/`
+   * To find your Extension ID: Go to `chrome://extensions`, load the extension, and copy the ID string.
+6. Copy the **Client ID** and paste it into `dsasync/.env`:
+   `PLASMO_PUBLIC_GITHUB_CLIENT_ID=your_client_id_here`
 
-You can start editing the popup by modifying `popup.tsx`. It should auto-update as you make changes. To add an options page, simply add a `options.tsx` file to the root of the project, with a react component default exported. Likewise to add a content page, add a `content.ts` file to the root of the project, importing some module and do some logic, then reload the extension on your browser.
-
-For further guidance, [visit our Documentation](https://docs.plasmo.com/)
-
-## Making production build
-
-Run the following:
-
+### 4. Build and Load
 ```bash
-pnpm build
-# or
 npm run build
 ```
+1. Open `chrome://extensions` in your browser.
+2. Enable **Developer mode**.
+3. Click **Load unpacked** and select `dsasync/build/chrome-mv3-prod`.
 
-This should create a production bundle for your extension, ready to be zipped and published to the stores.
+### 5. Configure
+1. Click the **DSA Sync** icon.
+2. Click **Login with GitHub**.
+3. Enter the 8-digit code on GitHub.
+4. Provide your **Full GitHub Repository URL** (e.g., `https://github.com/Kaushik2709/DSA`).
+5. Set your target folder (e.g., `DSA/`).
+6. Click **Finish Setup**.
 
-## Submit to the webstores
-
-The easiest way to deploy your Plasmo extension is to use the built-in [bpp](https://bpp.browser.market) GitHub action. Prior to using this action however, make sure to build your extension and upload the first version to the store to establish the basic credentials. Then, simply follow [this setup instruction](https://docs.plasmo.com/framework/workflows/submit) and you should be on your way for automated submission!
+## Development
+To run in watch mode:
+```bash
+npm run dev
+```

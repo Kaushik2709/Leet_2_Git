@@ -10,7 +10,7 @@ const storage = new Storage()
 const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
   const config = await storage.get<ExtensionConfig>("config")
   
-  if (!config || !config.isEnabled || !config.githubToken || !config.repoName) {
+  if (!config || !config.isEnabled || !config.accessToken || !config.repoName) {
     console.log("DSA Sync: Missing configuration or sync disabled.")
     return
   }
@@ -24,7 +24,7 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
   const folderPath = config.folderPath ? (config.folderPath.endsWith("/") ? config.folderPath : config.folderPath + "/") : ""
   
   const githubConfig = {
-    token: config.githubToken,
+    token: config.accessToken,
     repo: config.repoName
   }
 
@@ -72,10 +72,39 @@ const handler: PlasmoMessaging.MessageHandler = async (req, res) => {
     const updatedRootReadme = updateReadmeContent(rootReadmeContent, rootNewRow)
     await pushFile(rootReadmePath, updatedRootReadme, "Update root README", githubConfig)
 
-    // 4. Update last synced in storage
+    // 4. Update stats and last synced in storage
+    const today = new Date().toISOString().split('T')[0]
+    let newStreak = config.streak || 0
+    
+    if (config.lastSolveDate) {
+      const lastDate = new Date(config.lastSolveDate)
+      const diffTime = Math.abs(new Date(today).getTime() - lastDate.getTime())
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+      
+      if (diffDays === 1) {
+        newStreak += 1
+      } else if (diffDays > 1) {
+        newStreak = 1
+      }
+    } else {
+      newStreak = 1
+    }
+
+    const newStats = {
+      ...config.stats,
+      [submission.difficulty]: (config.stats[submission.difficulty] || 0) + 1,
+      Total: (config.stats.Total || 0) + 1
+    }
+
+    const newHistory = Array.from(new Set([...(config.weeklyHistory || []), today]))
+
     await storage.set("config", {
       ...config,
-      lastSynced: submission
+      lastSynced: submission,
+      lastSolveDate: today,
+      streak: newStreak,
+      stats: newStats,
+      weeklyHistory: newHistory
     })
 
     // 5. Show notification

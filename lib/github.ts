@@ -3,6 +3,23 @@ export interface GitHubConfig {
   repo: string
 }
 
+export function parseRepoUrl(url: string): string | null {
+  try {
+    const cleanUrl = url.replace(/\/$/, "")
+    const parts = cleanUrl.split("/")
+    if (parts.length >= 2) {
+      const repo = parts.pop()
+      const owner = parts.pop()
+      if (owner && repo) {
+        return `${owner}/${repo}`
+      }
+    }
+    return null
+  } catch (e) {
+    return null
+  }
+}
+
 export async function getFileSHA(path: string, config: GitHubConfig): Promise<string | null> {
   try {
     const response = await fetch(`https://api.github.com/repos/${config.repo}/contents/${path}`, {
@@ -46,7 +63,6 @@ export async function pushFile(
     })
 
     if (response.status === 429) {
-      // Retry once after 1 second on rate limit
       await new Promise(resolve => setTimeout(resolve, 1000))
       return pushFile(path, content, message, config)
     }
@@ -75,4 +91,38 @@ export async function getFileContent(path: string, config: GitHubConfig): Promis
     console.error("Error getting file content:", error)
     return null
   }
+}
+
+// GitHub Device Flow Auth Helpers
+const CLIENT_ID = process.env.PLASMO_PUBLIC_GITHUB_CLIENT_ID || ""
+
+export async function initiateDeviceFlow() {
+  const response = await fetch("https://github.com/login/device/code", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      client_id: CLIENT_ID,
+      scope: "repo"
+    })
+  })
+  return response.json()
+}
+
+export async function pollForToken(deviceCode: string) {
+  const response = await fetch("https://github.com/login/oauth/access_token", {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify({
+      client_id: CLIENT_ID,
+      device_code: deviceCode,
+      grant_type: "urn:ietf:params:oauth:grant-type:device_code"
+    })
+  })
+  return response.json()
 }
