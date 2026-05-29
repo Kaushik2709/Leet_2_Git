@@ -1,6 +1,6 @@
-# 🚀 DSA Sync: LeetCode to GitHub Automated Bridge
+# 🚀 Leet_2_Git: LeetCode to GitHub Automated Bridge
 
-**DSA Sync** is a sophisticated Chrome extension that streamlines your coding journey by automatically synchronizing your "Accepted" LeetCode submissions to a dedicated GitHub repository. It handles code extraction, formatting, and README documentation in real-time.
+**Leet_2_Git** is a sophisticated Chrome extension that streamlines your coding journey by automatically synchronizing your "Accepted" LeetCode submissions to a dedicated GitHub repository. It handles code extraction, formatting, and README documentation in real-time.
 
 ---
 
