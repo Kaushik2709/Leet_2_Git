@@ -90,20 +90,38 @@ async function fetchSubmissionDetails(submissionId: string) {
 }
 
 // Listen for messages from the interceptor script (which runs in the MAIN world)
-window.addEventListener("message", async (event) => {
+const handleMessage = async (event: MessageEvent) => {
   if (event.source !== window) return
 
   if (event.data.type === "LEETCODE_SUBMISSION_ACCEPTED") {
     const { submissionId } = event.data.payload
     console.log("DSA Sync: Message received from page! Submission ID:", submissionId)
     
+    // Check if extension context is valid before proceeding
+    if (typeof chrome === "undefined" || !chrome.runtime || !chrome.runtime.id) {
+      console.warn("DSA Sync: Extension context invalidated. Removing listener. Please refresh the page.")
+      window.removeEventListener("message", handleMessage)
+      return
+    }
+
     const details = await fetchSubmissionDetails(submissionId)
     if (details) {
       console.log("DSA Sync: Details fetched, sending to background...")
-      await sendToBackground({
-        name: "SUBMISSION_DETECTED",
-        body: details
-      })
+      try {
+        await sendToBackground({
+          name: "SUBMISSION_DETECTED",
+          body: details
+        })
+      } catch (error: any) {
+        if (error?.message?.includes("Extension context invalidated")) {
+          console.warn("DSA Sync: Extension context invalidated caught during send. Removing listener. Please refresh the page.")
+          window.removeEventListener("message", handleMessage)
+        } else {
+          console.error("DSA Sync: Error sending to background:", error)
+        }
+      }
     }
   }
-})
+}
+
+window.addEventListener("message", handleMessage)
