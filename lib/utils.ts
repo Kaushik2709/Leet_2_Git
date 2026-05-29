@@ -82,3 +82,62 @@ export function updateReadmeContent(currentContent: string, newRow: string): str
   // Insert at the end of the table
   return [...lines, newRow].join("\n")
 }
+
+export function parseReadmeForState(content: string) {
+  const lines = content.split("\n")
+  const stats = { Easy: 0, Medium: 0, Hard: 0, Total: 0 }
+  const solveDates = new Set<string>()
+
+  // Skip header and separator
+  for (const line of lines) {
+    if (line.startsWith("|") && !line.includes("| # |") && !line.includes("|---|")) {
+      const parts = line.split("|").map(p => p.trim())
+      if (parts.length >= 6) {
+        const difficulty = parts[4] as "Easy" | "Medium" | "Hard"
+        const date = parts[5] // YYYY-MM-DD
+        
+        if (difficulty && stats.hasOwnProperty(difficulty)) {
+          stats[difficulty]++
+          stats.Total++
+        }
+        if (date && /^\d{4}-\d{2}-\d{2}/.test(date)) {
+          solveDates.add(date.split(" ")[0])
+        }
+      }
+    }
+  }
+
+  // Calculate streak
+  const sortedDates = Array.from(solveDates).sort((a, b) => b.localeCompare(a))
+  let streak = 0
+  const today = new Date().toISOString().split("T")[0]
+  const yesterday = new Date(Date.now() - 86400000).toISOString().split("T")[0]
+
+  if (sortedDates.length > 0) {
+    let current = sortedDates[0]
+    
+    // Streak only counts if they solved today or yesterday
+    if (current === today || current === yesterday) {
+      streak = 1
+      for (let i = 1; i < sortedDates.length; i++) {
+        const prev = new Date(current)
+        prev.setDate(prev.getDate() - 1)
+        const prevStr = prev.toISOString().split("T")[0]
+        
+        if (sortedDates[i] === prevStr) {
+          streak++
+          current = sortedDates[i]
+        } else {
+          break
+        }
+      }
+    }
+  }
+
+  return {
+    stats,
+    streak,
+    weeklyHistory: Array.from(solveDates),
+    lastSolveDate: sortedDates[0] || undefined
+  }
+}

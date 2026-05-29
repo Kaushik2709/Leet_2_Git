@@ -94,9 +94,13 @@ export async function getFileContent(path: string, config: GitHubConfig): Promis
 }
 
 // GitHub Device Flow Auth Helpers
-const CLIENT_ID = process.env.PLASMO_PUBLIC_GITHUB_CLIENT_ID || ""
+const CLIENT_ID = process.env.PLASMO_PUBLIC_GITHUB_CLIENT_ID
 
 export async function initiateDeviceFlow() {
+  if (!CLIENT_ID || CLIENT_ID.includes("xxxx")) {
+    throw new Error("GITHUB_CLIENT_ID_MISSING")
+  }
+
   const response = await fetch("https://github.com/login/device/code", {
     method: "POST",
     headers: {
@@ -108,10 +112,19 @@ export async function initiateDeviceFlow() {
       scope: "repo"
     })
   })
+
+  if (!response.ok) {
+    const err = await response.text()
+    console.error("Device Flow Init Error:", err)
+    throw new Error("DEVICE_FLOW_INIT_FAILED")
+  }
+
   return response.json()
 }
 
 export async function pollForToken(deviceCode: string) {
+  if (!CLIENT_ID) throw new Error("GITHUB_CLIENT_ID_MISSING")
+
   const response = await fetch("https://github.com/login/oauth/access_token", {
     method: "POST",
     headers: {

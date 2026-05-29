@@ -3,7 +3,8 @@ import { Storage } from "@plasmohq/storage"
 import { useStorage } from "@plasmohq/storage/hook"
 import { Github, Folder, Key, Save, CheckCircle, Flame, ExternalLink, Settings, Info, ChevronLeft, Check, X, LogIn, Link } from "lucide-react"
 import type { ExtensionConfig } from "~types"
-import { initiateDeviceFlow, pollForToken, parseRepoUrl } from "~lib/github"
+import { initiateDeviceFlow, pollForToken, parseRepoUrl, getFileContent } from "~lib/github"
+import { parseReadmeForState } from "~lib/utils"
 import "./style.css"
 
 const storage = new Storage()
@@ -76,14 +77,15 @@ function IndexPopup() {
   const [enabled, setEnabled] = useState(true)
   const [isValid, setIsValid] = useState<boolean | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [isSyncing, setIsSyncing] = useState(false)
 
   // Device Flow State
-  const [authState, setAuthState] = useState<{
+  const [authState, setAuthState] = useStorage<{
     userCode: string;
     deviceCode: string;
     verificationUri: string;
     isPolling: boolean;
-  } | null>(null)
+  } | null>("authState", null)
 
   useEffect(() => {
     if (config) {
@@ -93,6 +95,38 @@ function IndexPopup() {
       if (config.accessToken && config.repoName) validateToken(config.accessToken, config.repoName)
     }
   }, [config])
+
+  useEffect(() => {
+    let interval: NodeJS.Timeout
+    
+    if (authState?.isPolling && !config?.accessToken) {
+      interval = setInterval(async () => {
+        try {
+          const tokenData = await pollForToken(authState.deviceCode)
+          if (tokenData.access_token) {
+            await setConfig((prev) => ({
+              ...prev,
+              accessToken: tokenData.access_token,
+              isEnabled: prev?.isEnabled ?? true,
+              folderPath: prev?.folderPath ?? "DSA/",
+              stats: prev?.stats ?? { Easy: 0, Medium: 0, Hard: 0, Total: 0 },
+              streak: prev?.streak ?? 0,
+              weeklyHistory: prev?.weeklyHistory ?? []
+            }))
+            setAuthState(null)
+          } else if (tokenData.error === "access_denied" || tokenData.error === "expired_token") {
+            setAuthState(null)
+          }
+        } catch (e) {
+          console.error("Polling error", e)
+        }
+      }, 5000)
+    }
+
+    return () => {
+      if (interval) clearInterval(interval)
+    }
+  }, [authState?.isPolling, config?.accessToken])
 
   const validateToken = async (t: string, r: string) => {
     if (!t || !r) return
@@ -106,34 +140,45 @@ function IndexPopup() {
     }
   }
 
+  const syncStateFromGithub = async (repoName: string, token: string, folder: string) => {
+    setIsSyncing(true)
+    try {
+      const path = folder ? (folder.endsWith("/") ? folder : folder + "/") : ""
+      const content = await getFileContent(`${path}README.md`, { repo: repoName, token })
+      
+      if (content) {
+        const newState = parseReadmeForState(content)
+        await setConfig(prev => ({
+          ...prev,
+          ...newState,
+          accessToken: token,
+          repoName: repoName,
+          folderPath: folder
+        }))
+      }
+    } catch (e) {
+      console.error("Sync failed", e)
+    } finally {
+      setIsSyncing(false)
+    }
+  }
+
   const handleLogin = async () => {
     try {
       const data = await initiateDeviceFlow()
-      setAuthState({
+      await setAuthState({
         userCode: data.user_code,
         deviceCode: data.device_code,
         verificationUri: data.verification_uri,
         isPolling: true
       })
-
-      // Start Polling
-      const interval = setInterval(async () => {
-        const tokenData = await pollForToken(data.device_code)
-        if (tokenData.access_token) {
-          clearInterval(interval)
-          await setConfig({
-            ...config,
-            accessToken: tokenData.access_token
-          })
-          setAuthState(null)
-          validateToken(tokenData.access_token, config.repoName)
-        } else if (tokenData.error === "access_denied") {
-          clearInterval(interval)
-          setAuthState(null)
-        }
-      }, 5000)
-    } catch (e) {
-      console.error("Login failed", e)
+    } catch (e: any) {
+      if (e.message === "GITHUB_CLIENT_ID_MISSING") {
+        alert("CRITICAL ERROR: PLASMO_PUBLIC_GITHUB_CLIENT_ID is missing in .env file. Please add it and run 'npm run build' again.")
+      } else {
+        alert("Login failed to initiate. Check console for details.")
+      }
+      console.error("Login initiation failed", e)
     }
   }
 
@@ -154,12 +199,16 @@ function IndexPopup() {
       isEnabled: enabled
     })
     
-    if (config.accessToken) await validateToken(config.accessToken, repoName)
+    if (config.accessToken) {
+      await validateToken(config.accessToken, repoName)
+      await syncStateFromGithub(repoName, config.accessToken, path)
+    }
     setIsSaving(false)
     setShowSettings(false)
   }
 
-  if (showSettings || !config?.accessToken) {
+  const isConfigured = config?.accessToken && config?.repoName
+  if (showSettings || !isConfigured) {
     return (
       <div className="w-80 p-4 bg-white font-sans text-slate-800">
         <div className="flex items-center gap-2 mb-6">
@@ -255,6 +304,17 @@ function IndexPopup() {
                   <div className="w-9 h-5 bg-gray-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-indigo-600"></div>
                 </label>
               </div>
+
+              {isConfigured && (
+                <button
+                  onClick={() => syncStateFromGithub(config.repoName, config.accessToken, path)}
+                  disabled={isSyncing}
+                  className="w-full bg-slate-100 hover:bg-slate-200 text-slate-700 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2"
+                >
+                  <Save className={`w-3 h-3 ${isSyncing ? 'animate-spin' : ''}`} />
+                  {isSyncing ? 'Syncing...' : 'Sync Stats from GitHub'}
+                </button>
+              )}
 
               <button
                 onClick={handleSave}

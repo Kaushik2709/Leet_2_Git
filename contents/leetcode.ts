@@ -3,14 +3,38 @@ import { sendToBackground } from "@plasmohq/messaging"
 import interceptorUrl from "url:./interceptor.ts"
 
 export const config: PlasmoCSConfig = {
-  matches: ["https://leetcode.com/problems/*"]
+  matches: ["https://leetcode.com/problems/*"],
+  run_at: "document_start"
 }
 
-// Inject the interceptor script
-const script = document.createElement("script")
-script.src = interceptorUrl
-script.onload = () => script.remove()
-;(document.head || document.documentElement).appendChild(script)
+// Inject the interceptor script as early as possible
+function injectInterceptor() {
+  if (document.getElementById("dsa-sync-interceptor")) return
+
+  const script = document.createElement("script")
+  script.id = "dsa-sync-interceptor"
+  script.src = interceptorUrl
+  
+  // Try to inject into documentElement if head doesn't exist yet
+  const target = document.head || document.documentElement
+  if (target) {
+    target.appendChild(script)
+    console.log("DSA Sync: Interceptor injected successfully via", target.tagName)
+  } else {
+    // Fallback if neither exist (extremely unlikely at document_start but just in case)
+    const observer = new MutationObserver(() => {
+      const newTarget = document.head || document.documentElement
+      if (newTarget) {
+        newTarget.appendChild(script)
+        console.log("DSA Sync: Interceptor injected successfully via Observer")
+        observer.disconnect()
+      }
+    })
+    observer.observe(document, { childList: true, subtree: true })
+  }
+}
+
+injectInterceptor()
 
 async function fetchSubmissionDetails(submissionId: string) {
   const query = `
@@ -65,13 +89,13 @@ async function fetchSubmissionDetails(submissionId: string) {
   }
 }
 
-// Listen for messages from the injected script
+// Listen for messages from the interceptor script (which runs in the MAIN world)
 window.addEventListener("message", async (event) => {
   if (event.source !== window) return
 
   if (event.data.type === "LEETCODE_SUBMISSION_ACCEPTED") {
     const { submissionId } = event.data.payload
-    console.log("DSA Sync: Submission accepted! ID:", submissionId)
+    console.log("DSA Sync: Message received from page! Submission ID:", submissionId)
     
     const details = await fetchSubmissionDetails(submissionId)
     if (details) {
